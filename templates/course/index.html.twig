@@ -1,0 +1,27 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ 'course.all'|trans }}{% endblock %}
+{% block h1 %}{{ 'course.all'|trans }}{% endblock %}
+
+{% block action %}
+    <a href="{{ path('app_course_new') }}" class="btn btn-primary">{{ 'course.add'|trans }}</a>
+{% endblock %}
+
+{% block body %}
+    <div class="mt-4">
+        {% for course in courses %}
+            <div class="row mb-2 pb-2 border-bottom">
+                <div class="col-2">
+                    <a href="{{ path('app_course_show', {'id': course.id}) }}">
+                        {{ course.name }}
+                    </a>
+                </div>
+                <div class="col-10">
+                    <p>{{ course.description }}</p>
+                </div>
+            </div>
+        {% else %}
+            <p>{{ 'course.empty'|trans }}</p>
+        {% endfor %}
+    </div>
+{% endblock %}

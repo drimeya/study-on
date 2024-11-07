@@ -1,0 +1,13 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ 'course.add'|trans }}{% endblock %}
+{% block h1 %}{{ 'course.add'|trans }}{% endblock %}
+
+{% block action %}
+    <a href="{{ path('app_course_index') }}" class="btn btn-outline-danger">{{ 'course.list.back'|trans }}</a>
+{% endblock %}
+
+{% block body %}
+    {{ include('course/_form.html.twig') }}
+
+{% endblock %}

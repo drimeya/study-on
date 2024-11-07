@@ -1,0 +1,37 @@
+<div class="row mb-5">
+    <div class="col-6">
+        {{ form_start(form) }}
+
+        {{ form_widget(form.course, {'attr': {'class': 'hidden', 'hidden': 'hidden'}, 'required': false}) }}
+        <div class="mb-3">
+            {{ form_label(form.name, 'Название урока', {'label_attr': {'class': 'form-label'} }) }}
+            {{ form_widget(form.name, {'attr': {'class': 'form-control'}, 'required': false}) }}
+            <div class="form-text text-danger">
+                {{ form_errors(form.name) }}
+            </div>
+        </div>
+        <div class="mb-3">
+            {{ form_label(form.content, 'Содержимое урока', {'label_attr': {'class': 'form-label'}}) }}
+            {{ form_widget(form.content, {'attr': {'class': 'form-control'}, 'required': false}) }}
+            <div class="form-text text-danger">
+                {{ form_errors(form.content) }}
+            </div>
+        </div>
+        <div class="mb-3">
+            {{ form_label(form.sort, 'Порядок (сортировка)', {'label_attr': {'class': 'form-label'}}) }}
+            {{ form_widget(form.sort, {'attr': {'class': 'form-control'}, 'required': false}) }}
+            <div class="form-text text-danger">
+                {{ form_errors(form.sort) }}
+            </div>
+        </div>
+        <button class="btn btn-primary">
+            {% if button_label is defined and button_label == 'update' %}
+                {{ 'base.update'| trans }}
+            {%  else %}
+                {{ 'base.save'| trans }}
+            {% endif %}
+        </button>
+        {{ form_end(form) }}
+    </div>
+</div>
+

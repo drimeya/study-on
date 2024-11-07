@@ -1,0 +1,6 @@
+<form method="post"
+      action="{{ path('app_lesson_delete', {'id': lesson.id}) }}"
+      onsubmit="return confirm('{{ 'base.delete.confirm'| trans }}');">
+    <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ lesson.id) }}">
+    <button class="btn btn-danger">{{ 'lesson.delete'| trans }}</button>
+</form>

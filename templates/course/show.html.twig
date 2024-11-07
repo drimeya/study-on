@@ -1,0 +1,42 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ course.name }}{% endblock %}
+{% block h1 %} {{ course.name }}{% endblock %}
+
+{% block action %}
+    <a class="btn btn-primary me-2"  href="{{ path('app_course_edit', {'id': course.id}) }}">{{ 'course.edit'|trans }}</a>
+    {{ include('course/_delete_form.html.twig') }}
+{% endblock %}
+
+{% block body %}
+    <div class="row">
+        <div class="col-8">
+            <p>{{ course.description }}</p>
+        </div>
+    </div>
+    <div class="row mb-4 pb-2 mt-4 border-bottom border-2">
+        <div class="col-8">
+            <h2 class="h4">{{ 'course.lesson.list'|trans }}</h2>
+        </div>
+    </div>
+    {% for lesson in lessons %}
+    <div class="row mb-2 pb-2 border-bottom">
+        <div class="col-8">
+            <a href="{{ path('app_lesson_show', {'id': lesson.id}) }}" class="d-block link-primary link-offset-2">Урок {{ loop.index }}. {{ lesson.name }}</a>
+        </div>
+        <div class="col-4">
+            <div class="d-flex justify-content-end">
+                <a href="{{ path('app_lesson_edit', {'id': lesson.id}) }}" class="btn btn-outline-primary me-2">{{ 'lesson.edit'|trans }}</a>
+                {{ include('lesson/_delete_form.html.twig') }}
+            </div>
+        </div>
+    </div>
+    {% else %}
+        <p>{{ 'lesson.empty'|trans }}</p>
+    {% endfor %}
+
+    <div class="mt-4">
+        <a href="{{ path('app_lesson_new', {'id': course.id}) }}" class="btn btn-primary me-2">{{ 'lesson.add'|trans }}</a>
+        <a class="btn btn-outline-primary" href="{{ path('app_course_index') }}">{{ 'course.list.back'|trans }}</a>
+    </div>
+{% endblock %}

@@ -1,0 +1,25 @@
+{% extends 'base.html.twig' %}
+
+
+{% block title %}
+    {% if(lesson.course) %}
+        {{ lesson.course.name }} | {{ 'lesson.add'| trans }}
+    {%  else %}
+        {{ 'lesson.add'| trans }}
+    {% endif %}
+{% endblock %}
+
+{% block h1 %}
+    {% if(lesson.course) %}
+        {{ lesson.course.name }}: {{ 'lesson.add'| trans | lower }}
+    {%  else %}
+        {{ 'lesson.add'| trans }}
+    {% endif %}
+{% endblock %}
+
+{% block action %}
+    <a href="{{ path('app_lesson_index') }}" class="btn btn-outline-danger">{{ 'lesson.list.back'| trans }}</a>
+{% endblock %}
+{% block body %}
+    {{ include('lesson/_form.html.twig') }}
+{% endblock %}
