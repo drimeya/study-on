@@ -24,7 +24,8 @@
 /assets/vendor/
 ###< symfony/asset-mapper ###
 
-.idea/
+.idea
+node_modules
 
 ###> squizlabs/php_codesniffer ###
 /.phpcs-cache
