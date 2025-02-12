@@ -16,7 +16,7 @@ class LessionFixtures extends Fixture
         $courses = $manager->getRepository(Course::class)->findAll();
 
         foreach ($courses as $course) {
-            $count = rand(3, 5);
+            $count = 4;
 
             for ($i = 0; $i < $count; $i++) {
                 $lesson = new Lesson();

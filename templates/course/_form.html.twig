@@ -4,21 +4,21 @@
         <div class="mb-3">
             {{ form_label(form.name, 'Название курса', {'label_attr': {'class': 'form-label'} }) }}
             {{ form_widget(form.name, {'attr': {'class': 'form-control'}, 'required': false}) }}
-            <div class="form-text text-danger">
+            <div class="form-text text-danger form-error-message">
                 {{ form_errors(form.name) }}
             </div>
         </div>
         <div class="mb-3">
             {{ form_label(form.code, 'Символьный код', {'label_attr': {'class': 'form-label'}}) }}
             {{ form_widget(form.code, {'attr': {'class': 'form-control'}, 'required': false}) }}
-            <div class="form-text text-danger">
+            <div class="form-text text-danger form-error-message">
                 {{ form_errors(form.code) }}
             </div>
         </div>
         <div class="mb-3">
             {{ form_label(form.description, 'Описание', {'label_attr': {'class': 'form-label'}}) }}
             <textarea name="{{  field_name(form.description) }}" id="{{ form.description.vars.id }}" class="form-control">{{ field_value(form.description) }}</textarea>
-            <div class="form-text text-danger">
+            <div class="form-text text-danger form-error-message">
             {{ form_errors(form.description) }}
             </div>
         </div>

@@ -10,14 +10,14 @@
 
 {% block body %}
     <div class="mb-4">
-        {{ 'lesson.attached_to'| trans }} <a href="{{ path('app_course_show', {'id': lesson.course.id}) }}">{{ lesson.course.name }}</a>
+        {{ 'lesson.attached_to'| trans }} <a href="{{ path('app_course_show', {'code': lesson.course.code}) }}">{{ lesson.course.name }}</a>
     </div>
     <div class="row">
         <div class="col-8">
             <p>{{ lesson.content }}</p>
         </div>
         <div class="mt-4">
-            <a href="{{ path('app_course_show', {'id':lesson.course.id}) }}" class="btn btn-outline-primary me-2">{{ 'lesson.back'| trans }}</a>
+            <a href="{{ path('app_course_show', {'code':lesson.course.code}) }}" class="btn btn-outline-primary me-2">{{ 'lesson.back'| trans }}</a>
             <a href="#" class="btn btn-primary">{{ 'lesson.next'| trans }}</a>
         </div>
     </div>

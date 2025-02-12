@@ -9,6 +9,13 @@ Encore
 
     .addEntry('app', './assets/app.js')
 
+    .enableSassLoader()
+    
+    // Enable single runtime chunk
+    .enableSingleRuntimeChunk()
+
     // uncomment this if you want use jQuery in the following example
     //.autoProvidejQuery()
 ;
+
+module.exports = Encore.getWebpackConfig();

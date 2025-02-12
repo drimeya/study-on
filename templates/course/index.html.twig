@@ -10,9 +10,9 @@
 {% block body %}
     <div class="mt-4">
         {% for course in courses %}
-            <div class="row mb-2 pb-2 border-bottom">
+            <div class="row mb-2 pb-2 border-bottom course-item">
                 <div class="col-2">
-                    <a href="{{ path('app_course_show', {'id': course.id}) }}">
+                    <a href="{{ path('app_course_show', {'code': course.code}) }}">
                         {{ course.name }}
                     </a>
                 </div>

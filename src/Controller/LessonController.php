@@ -40,7 +40,7 @@ final class LessonController extends AbstractController
 
             if ($id) {
                 return  $this->redirectToRoute('app_course_show', [
-                    'id' => $id
+                    'code' => $course->getCode()
                 ], Response::HTTP_SEE_OTHER);
             } else {
                 return $this->redirectToRoute('app_lesson_index', [], Response::HTTP_SEE_OTHER);
@@ -91,7 +91,7 @@ final class LessonController extends AbstractController
         }
 
         return $this->redirectToRoute('app_course_show', [
-                'id' => $course->getId()
+                'code' => $course->getCode()
             ], Response::HTTP_SEE_OTHER);
     }
 }

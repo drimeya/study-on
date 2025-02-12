@@ -10,6 +10,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 #[Route('/courses')]
 final class CourseController extends AbstractController
@@ -34,7 +35,7 @@ final class CourseController extends AbstractController
             $entityManager->flush();
 
             return $this->redirectToRoute('app_course_show', [
-                'id' => $course->getId()
+                'code' => $course->getCode()
             ], Response::HTTP_SEE_OTHER);
         }
         return $this->render('course/new.html.twig', [
@@ -43,9 +44,15 @@ final class CourseController extends AbstractController
         ]);
     }
 
-    #[Route('/{id}', name: 'app_course_show', methods: ['GET'])]
-    public function show(Course $course): Response
+    #[Route('/{code}', name: 'app_course_show', methods: ['GET'])]
+    public function show(string $code, CourseRepository $courseRepository): Response
     {
+        $course = $courseRepository->findOneBy(['code' => $code]);
+
+        if (!$course) {
+            throw new NotFoundHttpException('Курс не найден');
+        }
+
         $lessons = $course->getLessons()->toArray();
         usort($lessons, function($a, $b) {
             return $a->getSort() <=> $b->getSort();
@@ -57,9 +64,15 @@ final class CourseController extends AbstractController
         ]);
     }
 
-    #[Route('/{id}/edit', name: 'app_course_edit', methods: ['GET', 'POST'])]
-    public function edit(Request $request, Course $course, EntityManagerInterface $entityManager): Response
+    #[Route('/{code}/edit', name: 'app_course_edit', methods: ['GET', 'POST'])]
+    public function edit(string $code, Request $request, CourseRepository $courseRepository, EntityManagerInterface $entityManager): Response
     {
+        $course = $courseRepository->findOneBy(['code' => $code]);
+
+        if (!$course) {
+            throw new NotFoundHttpException('Курс не найден');
+        }
+
         $form = $this->createForm(CourseType::class, $course);
         $form->handleRequest($request);
 
@@ -67,7 +80,7 @@ final class CourseController extends AbstractController
             $entityManager->flush();
 
             return $this->redirectToRoute('app_course_show', [
-                'id' => $course->getId()
+                'code' => $course->getCode()
             ], Response::HTTP_SEE_OTHER);
         }
 

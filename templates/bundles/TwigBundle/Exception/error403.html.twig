@@ -1,0 +1,8 @@
+{# templates/bundles/TwigBundle/Exception/error403.html.twig #}
+{% extends 'base.html.twig' %}
+{% block title %}Ошибка 403{% endblock %}
+{% block h1 %}Ошибка 403{% endblock %}
+{% block body %}
+    <p>У вас нет доступа к этой странице</p>
+    <a href="{{ path('homepage') }}" class="btn btn-primary">На главную</a>.
+{% endblock %}

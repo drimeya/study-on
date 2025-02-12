@@ -1,0 +1,8 @@
+{# templates/bundles/TwigBundle/Exception/error.html.twig #}
+{% extends 'base.html.twig' %}
+{% block title %}Ошибка{% endblock %}
+{% block h1 %}Ошибка{% endblock %}
+{% block body %}
+    <p>Произошла ошибка</p>
+    <a href="{{ path('homepage') }}" class="btn btn-primary">На главную</a>.
+{% endblock %}
