@@ -3,6 +3,13 @@ PHP=$(COMPOSE) exec php
 CONSOLE=$(PHP) bin/console
 COMPOSER=$(PHP) composer
 
+full-up: up migrate fixtload
+
+test:
+	@${CONSOLE} doctrine:database:create --env=test || true
+	@${CONSOLE} doctrine:migrations:migrate --env=test --no-interaction
+	@${PHP} bin/phpunit
+
 up:
 	@${COMPOSE} up -d
 

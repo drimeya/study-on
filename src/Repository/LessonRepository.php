@@ -16,28 +16,19 @@ class LessonRepository extends ServiceEntityRepository
         parent::__construct($registry, Lesson::class);
     }
 
-    //    /**
-    //     * @return Lesson[] Returns an array of Lesson objects
-    //     */
-    //    public function findByExampleField($value): array
-    //    {
-    //        return $this->createQueryBuilder('l')
-    //            ->andWhere('l.exampleField = :val')
-    //            ->setParameter('val', $value)
-    //            ->orderBy('l.id', 'ASC')
-    //            ->setMaxResults(10)
-    //            ->getQuery()
-    //            ->getResult()
-    //        ;
-    //    }
-
-    //    public function findOneBySomeField($value): ?Lesson
-    //    {
-    //        return $this->createQueryBuilder('l')
-    //            ->andWhere('l.exampleField = :val')
-    //            ->setParameter('val', $value)
-    //            ->getQuery()
-    //            ->getOneOrNullResult()
-    //        ;
-    //    }
+    /**
+     * Находит следующий урок в курсе по порядку сортировки
+     */
+    public function findNextLesson(Lesson $currentLesson): ?Lesson
+    {
+        return $this->createQueryBuilder('l')
+            ->andWhere('l.course = :course')
+            ->andWhere('l.sort > :currentSort')
+            ->setParameter('course', $currentLesson->getCourse())
+            ->setParameter('currentSort', $currentLesson->getSort() ?? 0)
+            ->orderBy('l.sort', 'ASC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
 }

@@ -19,7 +19,7 @@
     <body class="d-flex flex-column justify-content-between">
         <div class="container">
             <header class="d-flex flex-wrap align-items-center justify-content-center justify-content-md-between py-3 mb-4 border-bottom">
-                <div class="col-md-3 mb-2 mb-md-0">
+                <div class="col-md-2 mb-2 mb-md-0">
                     <a href="/" class="d-inline-flex link-body-emphasis text-decoration-none">
                         <svg width="40" height="32" xmlns="http://www.w3.org/2000/svg" viewBox="0 128 128"><text y="1.2em" font-size="22">⚫️</text><text y="1.3em" x="0.2em" font-size="18" fill="#fff">sf</text></svg>
                     </a>
@@ -31,9 +31,15 @@
                     <li><a href="#" class="nav-link px-2">Категории</a></li>
                 </ul>
 
-                <div class="col-md-3 text-end">
-                    <button type="button" class="btn btn-outline-primary me-2">Вход</button>
-                    <button type="button" class="btn btn-primary">Регистрация</button>
+                <div class="col-md-5 text-end">
+                    {% if app.user %}
+                        <a href="{{ path('app_profile') }}" class="btn btn-outline-secondary me-2">Профиль</a>
+                        <span class="me-3">{{ app.user.userIdentifier }}</span>
+                        <a href="{{ path('app_logout') }}" class="btn btn-outline-primary">Выйти</a>
+                    {% else %}
+                        <a href="{{ path('app_login') }}" class="btn btn-outline-primary me-2">Вход</a>
+                        <a href="{{ path('app_register') }}" class="btn btn-primary">Регистрация</a>
+                    {% endif %}
                 </div>
             </header>
             <div class="row">
@@ -51,7 +57,7 @@
         <div class="container">
             <footer class="d-flex flex-wrap justify-content-between align-items-center py-3 my-4 border-top">
                 <div class="col-md-4 d-flex align-items-center">
-                    <span class="mb-3 mb-md-0 text-body-secondary">© 2024 {{ 'project.author'|trans }}</span>
+                    <span class="mb-3 mb-md-0 text-body-secondary">© {{ "now"|date("Y") }} {{ 'project.author'|trans }}</span>
                 </div>
             </footer>
         </div>

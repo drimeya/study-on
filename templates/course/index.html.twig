@@ -4,7 +4,9 @@
 {% block h1 %}{{ 'course.all'|trans }}{% endblock %}
 
 {% block action %}
-    <a href="{{ path('app_course_new') }}" class="btn btn-primary">{{ 'course.add'|trans }}</a>
+    {% if is_granted('ROLE_SUPER_ADMIN') %}
+        <a href="{{ path('app_course_new') }}" class="btn btn-primary">{{ 'course.add'|trans }}</a>
+    {% endif %}
 {% endblock %}
 
 {% block body %}

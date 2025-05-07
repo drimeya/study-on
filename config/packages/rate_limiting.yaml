@@ -1,0 +1,20 @@
+parameters:
+  # Rate Limiting Configuration
+  rate_limiting:
+    login:
+      attempts_limit: 5
+      window_seconds: 900  # 15 minutes
+    registration:
+      attempts_limit: 3
+      window_seconds: 3600  # 1 hour
+    api:
+      calls_limit: 100
+      window_seconds: 3600  # 1 hour
+    token:
+      max_tokens_per_user: 5
+      default_expiration_hours: 24
+  
+  # Token Configuration
+  token:
+    max_tokens_per_user: '%env(default::TOKEN_MAX_TOKENS_PER_USER)%'
+    default_expiration_hours: '%env(default::TOKEN_DEFAULT_EXPIRATION_HOURS)%'

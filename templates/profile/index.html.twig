@@ -1,0 +1,50 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Профиль{% endblock %}
+
+{% block body %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="m-3 h3">Профиль пользователя</h2>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5>Основная информация</h5>
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td><strong>Email:</strong></td>
+                                    <td>{{ user.email }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Роль:</strong></td>
+                                    <td>{{ roleName }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Баланс:</strong></td>
+                                    <td>
+                                        {% if error %}
+                                            <span class="text-danger">{{ error }}</span>
+                                        {% else %}
+                                            {{ balance }} ₽
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-3">
+                        <a href="{{ path('app_course_index') }}" class="btn btn-primary">
+                            <i class="fas fa-arrow-left"></i> Вернуться к курсам
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

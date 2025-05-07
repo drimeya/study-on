@@ -2,6 +2,8 @@
 
 namespace App\Tests;
 
+use App\Service\RateLimiter\LoginRateLimiter;
+use App\Tests\Mock\BillingClientMock;
 use App\DataFixtures\CourseFixtures;
 use App\DataFixtures\LessionFixtures;
 use Symfony\Component\HttpFoundation\Response;
@@ -14,6 +16,22 @@ class CourseControllerTest extends AbstractTest
             CourseFixtures::class,
             LessionFixtures::class,
         ];
+    }
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        
+        // Настраиваем mock для BillingClient
+        $billingMock = new BillingClientMock('');
+        static::getClient()->getContainer()->set(
+            'App\Service\BillingClient',
+            $billingMock
+        );
+
+        // Сбрасываем счетчик попыток логина для admin, чтобы не срабатывал rate limit между тестами
+        $loginLimiter = static::getContainer()->get(LoginRateLimiter::class);
+        $loginLimiter->resetAttempts('admin@example.com');
     }
 
     public function testCourseIndex(): void
@@ -40,9 +58,21 @@ class CourseControllerTest extends AbstractTest
         $this->assertResponseStatusCodeSame(Response::HTTP_NOT_FOUND);
     }
 
-    public function testAddLesson(): void
+    public function testAddLessonWithoutAuth(): void
     {
         $client = static::getClient();
+        $client->request('GET', '/lessons/new/1');
+        // Анонимного пользователя перенаправляет на страницу логина
+        $this->assertResponseRedirects('/login');
+    }
+
+    public function testAddLessonWithAuth(): void
+    {
+        $client = static::getClient();
+        
+        // Авторизуемся как админ
+        $this->loginAsAdmin();
+        
         $crawler = $client->request('GET', '/courses/course-0');
         $this->assertResponseStatusCodeSame(Response::HTTP_OK);
 
@@ -63,9 +93,19 @@ class CourseControllerTest extends AbstractTest
         $this->assertSelectorTextContains('.lesson-item', 'Новый урок');
     }
 
+    public function testCreateCourseWithoutAuth(): void
+    {
+        $client = static::getClient();
+        $client->request('GET', '/courses/new');
+        // Анонимного пользователя перенаправляет на страницу логина
+        $this->assertResponseRedirects('/login');
+    }
+
     public function testCreateCourseWithInvalidData(): void
     {
         $client = static::getClient();
+        $this->loginAsAdmin();
+        
         $crawler = $client->request('GET', '/courses/new');
         $this->assertResponseStatusCodeSame(Response::HTTP_OK);
 
@@ -80,6 +120,8 @@ class CourseControllerTest extends AbstractTest
     public function testCreateCourseWithValidData(): void
     {
         $client = static::getClient();
+        $this->loginAsAdmin();
+        
         $crawler = $client->request('GET', '/courses/new');
         $this->assertResponseStatusCodeSame(Response::HTTP_OK);
 
@@ -95,9 +137,18 @@ class CourseControllerTest extends AbstractTest
         $this->assertSelectorTextContains('h1', 'Новый курс');
     }
 
+    public function testEditCourseWithoutAuth(): void
+    {
+        $client = static::getClient();
+        $client->request('GET', '/courses/course-0/edit');
+        $this->assertResponseRedirects('/login');
+    }
+
     public function testEditCourse(): void
     {
         $client = static::getClient();
+        $this->loginAsAdmin();
+        
         $crawler = $client->request('GET', '/courses/course-0/edit');
         $this->assertResponseStatusCodeSame(Response::HTTP_OK);
 
@@ -111,17 +162,43 @@ class CourseControllerTest extends AbstractTest
         $this->assertSelectorTextContains('h1', 'Обновленный курс');
     }
 
+    public function testDeleteCourseWithoutAuth(): void
+    {
+        $client = static::getClient();
+        // Берем существующий курс из базы и пробуем удалить его без авторизации
+        $em = static::getContainer()->get('doctrine')->getManager();
+        $course = $em->getRepository(\App\Entity\Course::class)->findOneBy([]);
+        $client->request('POST', '/courses/'.$course->getId(), ['_token' => 'fake_token']);
+        $this->assertResponseRedirects('/login');
+    }
+
     public function testDeleteCourse(): void
     {
         $client = static::getClient();
+        $this->loginAsAdmin();
+        
         $crawler = $client->request('GET', '/courses/course-0');
         $this->assertResponseStatusCodeSame(Response::HTTP_OK);
 
-        $form = $crawler->selectButton('Удалить курс')->form();
+        // Кнопка удаления курса выводится через перевод, поэтому выбираем по CSS-классу
+        $form = $crawler->filter('form button.btn-danger')->form();
         $client->submit($form);
         $this->assertResponseRedirect();
         $client->followRedirect();
         $this->assertResponseStatusCodeSame(Response::HTTP_OK);
         $this->assertSelectorNotExists('.course-item:contains("Изучение Symfony")');
+    }
+
+    private function loginAsAdmin(): void
+    {
+        $client = static::getClient();
+        $crawler = $client->request('GET', '/login');
+        
+        $form = $crawler->selectButton('Войти')->form();
+        $form['email'] = 'admin@example.com';
+        $form['password'] = 'admin123';
+
+        $client->submit($form);
+        $client->followRedirect();
     }
 }

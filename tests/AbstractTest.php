@@ -20,6 +20,7 @@ abstract class AbstractTest extends WebTestCase
     {
         if (!static::$client || $newClient) {
             static::$client = static::createClient();
+            static::$client->disableReboot();
         }
 
         // core is loaded (for tests without calling of getClient(true))
