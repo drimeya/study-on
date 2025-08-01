@@ -3,7 +3,9 @@
 namespace App\Service;
 
 use App\Dto\BillingAuthResponse;
+use App\Dto\BillingCourseResponse;
 use App\Dto\BillingResponse;
+use App\Dto\BillingTransactionResponse;
 use App\Dto\BillingUserResponse;
 use App\Exception\BillingApiException;
 use App\Exception\BillingUnavailableException;
@@ -27,7 +29,7 @@ class BillingClient implements BillingClientInterface
      * @return BillingResponse
      * @throws BillingUnavailableException
      */
-    public function request(string $endpoint, array $data = [], string $method = 'GET', ?string $token = null): BillingResponse
+    public function request(string $endpoint, array $data = [], string $method = 'GET', ?string $token = null, array $queryParams = []): BillingResponse
     {
         // Валидация входных параметров
         $this->validateEndpoint($endpoint);
@@ -35,6 +37,9 @@ class BillingClient implements BillingClientInterface
         $this->validateData($data);
         
         $url = $this->billingUrl . $endpoint;
+        if (!empty($queryParams)) {
+            $url .= '?' . http_build_query($queryParams);
+        }
         
         $ch = curl_init();
         
@@ -55,8 +60,8 @@ class BillingClient implements BillingClientInterface
             CURLOPT_CUSTOMREQUEST => $method,
         ]);
         
-        if (!empty($data) && in_array($method, ['POST', 'PUT', 'PATCH'])) {
-            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+        if (in_array($method, ['POST', 'PUT', 'PATCH'])) {
+            curl_setopt($ch, CURLOPT_POSTFIELDS, empty($data) ? '' : json_encode($data));
         }
         
         $response = curl_exec($ch);
@@ -139,6 +144,119 @@ class BillingClient implements BillingClientInterface
     }
 
     /**
+     * Обновляет истекший JWT-токен с помощью refresh-токена
+     *
+     * @param string $refreshToken
+     * @return BillingAuthResponse
+     * @throws BillingUnavailableException|BillingApiException
+     */
+    public function refreshToken(string $refreshToken): BillingAuthResponse
+    {
+        $url = $this->billingUrl . '/api/v1/token/refresh';
+
+        $ch = curl_init();
+        curl_setopt_array($ch, [
+            CURLOPT_URL => $url,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => 30,
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => 'refresh_token=' . urlencode($refreshToken),
+            CURLOPT_HTTPHEADER => [
+                'Content-Type: application/x-www-form-urlencoded',
+                'Accept: application/json',
+            ],
+        ]);
+
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $error = curl_error($ch);
+        curl_close($ch);
+
+        if ($error || $response === false) {
+            throw new BillingUnavailableException('Ошибка подключения к сервису биллинга: ' . $error);
+        }
+
+        $decodedResponse = json_decode($response, true);
+
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new BillingUnavailableException('Ошибка парсинга ответа от сервиса биллинга');
+        }
+
+        $this->handleApiError($httpCode, $decodedResponse);
+
+        return BillingAuthResponse::fromArray($decodedResponse);
+    }
+
+    /**
+     * Получить список всех курсов из биллинга
+     *
+     * @return BillingCourseResponse[]
+     * @throws BillingUnavailableException
+     */
+    public function getCourses(?string $token = null): array
+    {
+        $response = $this->request('/api/v1/courses', [], 'GET', $token);
+
+        return array_map(
+            fn (array $d) => BillingCourseResponse::fromArray($d),
+            $response->data
+        );
+    }
+
+    /**
+     * Получить данные одного курса по символьному коду
+     *
+     * @throws BillingUnavailableException
+     */
+    public function getCourse(string $code, ?string $token = null): ?BillingCourseResponse
+    {
+        try {
+            $response = $this->request('/api/v1/courses/' . $code, [], 'GET', $token);
+            return BillingCourseResponse::fromArray($response->data);
+        } catch (BillingApiException $e) {
+            if ($e->getStatusCode() === 404) {
+                return null;
+            }
+            throw $e;
+        }
+    }
+
+    /**
+     * Оплатить курс от имени авторизованного пользователя
+     *
+     * @return array{success: bool, course_type: string, expires_at: string|null}
+     * @throws BillingApiException если недостаточно средств (406) или курс не найден (404)
+     * @throws BillingUnavailableException
+     */
+    public function payCourse(string $code, string $token): array
+    {
+        $response = $this->request('/api/v1/courses/' . $code . '/pay', [], 'POST', $token);
+        return $response->data;
+    }
+
+    /**
+     * История транзакций текущего пользователя
+     *
+     * @param array{type?: string, course_code?: string, skip_expired?: bool} $filters
+     * @return BillingTransactionResponse[]
+     * @throws BillingUnavailableException
+     */
+    public function getTransactions(string $token, array $filters = []): array
+    {
+        $queryParams = [];
+        if (!empty($filters)) {
+            $queryParams['filter'] = $filters;
+        }
+
+        $response = $this->request('/api/v1/transactions', [], 'GET', $token, $queryParams);
+
+        return array_map(
+            fn (array $d) => BillingTransactionResponse::fromArray($d),
+            $response->data
+        );
+    }
+
+    /**
      * Валидирует endpoint
      */
     private function validateEndpoint(string $endpoint): void
@@ -190,7 +308,7 @@ class BillingClient implements BillingClientInterface
     /**
      * Обрабатывает ошибки API
      */
-    private function handleApiError(int $httpCode, array $response): void
+    protected function handleApiError(int $httpCode, array $response): void
     {
         if ($httpCode >= 400) {
             $message = $response['message'] ?? 'Unknown API error';

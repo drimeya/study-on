@@ -6,9 +6,9 @@ use App\Exception\BillingUnavailableException;
 use App\Service\BillingClient;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\Session\SessionInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
-use Symfony\Component\HttpFoundation\Session\SessionInterface;
 
 #[Route('/profile')]
 final class ProfileController extends AbstractController
@@ -18,33 +18,48 @@ final class ProfileController extends AbstractController
     public function index(BillingClient $billingClient, SessionInterface $session): Response
     {
         $user = $this->getUser();
-        $balance = 0;
+        $balance = null;
         $error = null;
 
         try {
-            // Получаем токен из сессии
             $token = $session->get('billing_token');
-            
             if ($token) {
                 $response = $billingClient->getCurrentUser($token);
                 $balance = $response->balance;
             }
-        } catch (BillingUnavailableException $e) {
-            $error = 'Не удалось получить информацию о балансе';
+        } catch (BillingUnavailableException) {
+            $error = 'Сервис временно недоступен';
         }
 
-        // Определяем роль пользователя
         $roles = $user->getRoles();
-        $roleName = 'Пользователь';
-        
-        if (in_array('ROLE_SUPER_ADMIN', $roles)) {
-            $roleName = 'Администратор';
-        }
+        $roleName = in_array('ROLE_SUPER_ADMIN', $roles) ? 'Администратор' : 'Пользователь';
 
         return $this->render('profile/index.html.twig', [
             'user' => $user,
             'roleName' => $roleName,
             'balance' => $balance,
+            'error' => $error,
+        ]);
+    }
+
+    #[Route('/transactions', name: 'app_profile_transactions', methods: ['GET'])]
+    #[IsGranted('ROLE_USER')]
+    public function transactions(BillingClient $billingClient, SessionInterface $session): Response
+    {
+        $transactions = [];
+        $error = null;
+
+        try {
+            $token = $session->get('billing_token');
+            if ($token) {
+                $transactions = $billingClient->getTransactions($token);
+            }
+        } catch (BillingUnavailableException) {
+            $error = 'Сервис временно недоступен';
+        }
+
+        return $this->render('profile/transactions.html.twig', [
+            'transactions' => $transactions,
             'error' => $error,
         ]);
     }

@@ -31,9 +31,10 @@ class RegistrationService
         try {
             $response = $this->billingClient->register($registrationData->email, $registrationData->password);
             
-            // Сохраняем токен и роли в сессии
+            // Сохраняем токен, refresh_token и роли в сессии
             $session->set('billing_token', $response->token);
             $session->set('billing_roles', $response->roles);
+            $session->set('billing_refresh_token', $response->refreshToken);
             
             // Загружаем пользователя
             $user = $this->userService->createOrUpdateUserFromSession($registrationData->email, $session);

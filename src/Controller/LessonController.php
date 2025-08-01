@@ -4,12 +4,15 @@ namespace App\Controller;
 
 use App\Entity\Course;
 use App\Entity\Lesson;
+use App\Exception\BillingUnavailableException;
 use App\Form\LessonType;
 use App\Repository\LessonRepository;
+use App\Service\BillingClient;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\Session\SessionInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
@@ -41,13 +44,10 @@ final class LessonController extends AbstractController
             $entityManager->flush();
 
             if ($id) {
-                return  $this->redirectToRoute('app_course_show', [
-                    'code' => $course->getCode()
-                ], Response::HTTP_SEE_OTHER);
+                return $this->redirectToRoute('app_course_show', ['code' => $course->getCode()], Response::HTTP_SEE_OTHER);
             } else {
                 return $this->redirectToRoute('app_lesson_index', [], Response::HTTP_SEE_OTHER);
             }
-
         }
 
         return $this->render('lesson/new.html.twig', [
@@ -58,13 +58,47 @@ final class LessonController extends AbstractController
 
     #[Route('/{id}', name: 'app_lesson_show', methods: ['GET'])]
     #[IsGranted('ROLE_USER')]
-    public function show(Lesson $lesson, LessonRepository $lessonRepository): Response
+    public function show(Lesson $lesson, LessonRepository $lessonRepository, BillingClient $billingClient, SessionInterface $session): Response
     {
+        $course = $lesson->getCourse();
+
+        try {
+            $billingCourse = $billingClient->getCourse($course->getCode());
+
+            // Если курс платный — проверяем наличие активной оплаты
+            if ($billingCourse !== null && !$billingCourse->isFree()) {
+                $token = $session->get('billing_token');
+
+                if (!$token) {
+                    $this->addFlash('error', 'Для просмотра платного курса необходимо войти в систему.');
+                    return $this->redirectToRoute('app_course_show', ['code' => $course->getCode()]);
+                }
+
+                $transactions = $billingClient->getTransactions($token, [
+                    'type' => 'payment',
+                    'course_code' => $course->getCode(),
+                    'skip_expired' => 1,
+                ]);
+
+                if (empty($transactions)) {
+                    $this->addFlash('error', 'Этот курс необходимо оплатить для просмотра уроков.');
+                    return $this->redirectToRoute('app_course_show', ['code' => $course->getCode()]);
+                }
+            }
+        } catch (BillingUnavailableException) {
+            return $this->render('lesson/show.html.twig', [
+                'lesson' => $lesson,
+                'nextLesson' => null,
+                'billingError' => true,
+            ]);
+        }
+
         $nextLesson = $lessonRepository->findNextLesson($lesson);
-        
+
         return $this->render('lesson/show.html.twig', [
             'lesson' => $lesson,
-            'nextLesson' => $nextLesson
+            'nextLesson' => $nextLesson,
+            'billingError' => false,
         ]);
     }
 
@@ -78,7 +112,7 @@ final class LessonController extends AbstractController
         if ($form->isSubmitted() && $form->isValid()) {
             $entityManager->flush();
 
-            return $this->redirectToRoute('app_lesson_show', ['id'=> $lesson->getId()], Response::HTTP_SEE_OTHER);
+            return $this->redirectToRoute('app_lesson_show', ['id' => $lesson->getId()], Response::HTTP_SEE_OTHER);
         }
 
         return $this->render('lesson/edit.html.twig', [
@@ -98,8 +132,6 @@ final class LessonController extends AbstractController
             $entityManager->flush();
         }
 
-        return $this->redirectToRoute('app_course_show', [
-                'code' => $course->getCode()
-            ], Response::HTTP_SEE_OTHER);
+        return $this->redirectToRoute('app_course_show', ['code' => $course->getCode()]);
     }
 }

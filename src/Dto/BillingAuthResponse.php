@@ -8,7 +8,8 @@ class BillingAuthResponse
         public readonly string $token,
         public readonly array $roles,
         public readonly string $username,
-        public readonly int $balance = 0
+        public readonly int $balance = 0,
+        public readonly ?string $refreshToken = null
     ) {
     }
 
@@ -18,7 +19,8 @@ class BillingAuthResponse
             token: $data['token'] ?? '',
             roles: $data['roles'] ?? ['ROLE_USER'],
             username: $data['username'] ?? '',
-            balance: $data['balance'] ?? 0
+            balance: $data['balance'] ?? 0,
+            refreshToken: $data['refresh_token'] ?? null
         );
     }
 }

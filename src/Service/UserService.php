@@ -37,7 +37,8 @@ class UserService
         
         $token = $session->get('billing_token');
         $roles = $session->get('billing_roles', ['ROLE_USER']);
-        
+        $refreshToken = $session->get('billing_refresh_token');
+
         // Новый пользователь должен быть сохранен до создания токена,
         // иначе Doctrine считает его "новым" при сохранении UserApiToken
         if ($isNewUser) {
@@ -45,12 +46,17 @@ class UserService
         }
 
         if ($token) {
-            // Сохраняем токен в базе данных
+            // Сохраняем JWT access-токен в базе данных
             $this->tokenService->createToken($user, $token, null, false);
-            
+
+            // Сохраняем refresh-токен в сущности пользователя
+            if ($refreshToken !== null) {
+                $user->setRefreshToken($refreshToken);
+            }
+
             // Получаем кэшированные данные пользователя
             $cachedUserData = $this->userCacheService->getCachedUserData($token);
-            
+
             if ($cachedUserData) {
                 $user->setRoles($cachedUserData['roles']);
                 $user->setEmail($cachedUserData['username']);

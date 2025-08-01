@@ -31,6 +31,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $password = null;
 
+    #[ORM\Column(length: 1000, nullable: true)]
+    private ?string $refreshToken = null;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -104,6 +107,18 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     {
         // If you store any temporary, sensitive data on the user, clear it here
         // $this->plainPassword = null;
+    }
+
+    public function getRefreshToken(): ?string
+    {
+        return $this->refreshToken;
+    }
+
+    public function setRefreshToken(?string $refreshToken): static
+    {
+        $this->refreshToken = $refreshToken;
+
+        return $this;
     }
 
     // API токен теперь управляется через UserApiToken entity

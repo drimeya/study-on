@@ -10,16 +10,48 @@
 {% endblock %}
 
 {% block body %}
+    {% if billingError %}
+        <div class="alert alert-warning">Сервис ценообразования временно недоступен. Цены могут отображаться некорректно.</div>
+    {% endif %}
+
     <div class="mt-4">
         {% for course in courses %}
-            <div class="row mb-2 pb-2 border-bottom course-item">
-                <div class="col-2">
-                    <a href="{{ path('app_course_show', {'code': course.code}) }}">
+            {% set bc = billingCourses[course.code] ?? null %}
+            {% set paid = paymentStatuses[course.code] ?? null %}
+
+            <div class="row mb-2 pb-2 border-bottom course-item align-items-center">
+                <div class="col-3">
+                    <a href="{{ path('app_course_show', {'code': course.code}) }}" class="fw-semibold">
                         {{ course.name }}
                     </a>
                 </div>
-                <div class="col-10">
-                    <p>{{ course.description }}</p>
+                <div class="col-6">
+                    <p class="mb-0 text-muted small">{{ course.description }}</p>
+                </div>
+                <div class="col-3 text-end">
+                    {% if bc is null or bc.type == 'free' %}
+                        <span class="badge bg-success">Бесплатно</span>
+                    {% elseif paid %}
+                        {% if bc.type == 'rent' and paid.expiresAt %}
+                            <span class="badge bg-info text-dark">Арендовано до {{ paid.expiresAt|date('d.m.Y') }}</span>
+                        {% else %}
+                            <span class="badge bg-primary">Куплено</span>
+                        {% endif %}
+                    {% else %}
+                        {% if is_granted('IS_AUTHENTICATED_FULLY') %}
+                            {% if bc.type == 'rent' %}
+                                <span class="badge bg-secondary">Аренда {{ bc.price }} ₽</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Купить за {{ bc.price }} ₽</span>
+                            {% endif %}
+                        {% else %}
+                            {% if bc.type == 'rent' %}
+                                <span class="badge bg-light text-dark border">Аренда {{ bc.price }} ₽</span>
+                            {% else %}
+                                <span class="badge bg-light text-dark border">{{ bc.price }} ₽</span>
+                            {% endif %}
+                        {% endif %}
+                    {% endif %}
                 </div>
             </div>
         {% else %}

@@ -1,0 +1,8 @@
+{% extends '@!Twig/Exception/error.html.twig' %}
+
+{% block title %}Доступ запрещён{% endblock %}
+
+{% block message %}
+    У вас недостаточно прав для просмотра этой страницы.<br>
+    Если вы считаете, что это ошибка — попробуйте <a href="/login">войти в систему</a>.
+{% endblock %}

@@ -8,6 +8,8 @@ use App\Exception\BillingUnavailableException;
 use App\Repository\UserRepository;
 use App\Repository\UserApiTokenRepository;
 use App\Service\BillingClient;
+use App\Service\JwtService;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Security\Core\User\UserProviderInterface;
@@ -18,40 +20,36 @@ class UserProvider implements UserProviderInterface
         private BillingClient $billingClient,
         private RequestStack $requestStack,
         private UserRepository $userRepository,
-        private UserApiTokenRepository $userApiTokenRepository
+        private UserApiTokenRepository $userApiTokenRepository,
+        private JwtService $jwtService,
+        private LoggerInterface $logger
     ) {
     }
 
     public function loadUserByIdentifier(string $identifier): UserInterface
     {
-        // Сначала пытаемся найти пользователя в базе данных
         $user = $this->userRepository->findOneBy(['email' => $identifier]);
-        
+
         if (!$user) {
-            // Если пользователя нет в базе, создаем нового
             $user = new User();
             $user->setEmail($identifier);
-            // Устанавливаем пустой пароль, так как аутентификация происходит через внешний сервис
             $user->setPassword('');
         }
-        
+
         $session = $this->requestStack->getSession();
         $token = $session?->get('billing_token');
         $roles = $session?->get('billing_roles', ['ROLE_USER']);
-        
+
         if ($token) {
-            // Создаем или обновляем API токен для пользователя
             $this->createOrUpdateApiToken($user, $token);
-            
+
             try {
                 $userResponse = $this->billingClient->getCurrentUser($token);
-                
-                // Получаем роли из объекта BillingUserResponse
+
                 if (!empty($userResponse->roles)) {
                     $roles = $userResponse->roles;
                 }
-                
-                // Обновляем email из ответа API
+
                 if (!empty($userResponse->username)) {
                     $user->setEmail($userResponse->username);
                 }
@@ -59,17 +57,58 @@ class UserProvider implements UserProviderInterface
                 // Если API недоступен, используем роли из сессии
             }
         }
-        
+
         $user->setRoles($roles);
-        
-        // Сохраняем или обновляем пользователя в базе данных
+
         $this->userRepository->save($user, true);
-        
+
         return $user;
     }
 
     public function refreshUser(UserInterface $user): UserInterface
     {
+        /** @var User $user */
+        $session = $this->requestStack->getSession();
+        $currentToken = $session?->get('billing_token');
+
+        // Пытаемся расшифровать токен. Если он не является валидным JWT (например, mock-токен
+        // в тестах или legacy-токен), decode() вернёт null — обновление не нужно.
+        $payload = $currentToken !== null ? $this->jwtService->decode($currentToken) : null;
+
+        if ($payload !== null && $this->jwtService->isExpired($currentToken)) {
+            // Токен истёк (или скоро истечёт) — пробуем обновить через refresh_token
+            $refreshToken = $user->getRefreshToken()
+                ?? $session?->get('billing_refresh_token');
+
+            if ($refreshToken !== null) {
+                try {
+                    $authResponse = $this->billingClient->refreshToken($refreshToken);
+
+                    // Обновляем сессию
+                    $session->set('billing_token', $authResponse->token);
+                    $session->set('billing_roles', $authResponse->roles);
+                    if ($authResponse->refreshToken !== null) {
+                        $session->set('billing_refresh_token', $authResponse->refreshToken);
+                    }
+
+                    // Обновляем refresh_token в сущности пользователя
+                    $user->setRefreshToken($authResponse->refreshToken ?? $refreshToken);
+                    $this->userRepository->save($user, true);
+
+                    $this->logger->info('JWT token refreshed for user', [
+                        'email' => $user->getUserIdentifier(),
+                    ]);
+                } catch (\Throwable $e) {
+                    // Если обновление не удалось — продолжаем с текущим токеном;
+                    // пользователь будет разлогинен на следующем запросе к биллингу
+                    $this->logger->warning('Failed to refresh JWT token', [
+                        'email' => $user->getUserIdentifier(),
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+        }
+
         return $this->loadUserByIdentifier($user->getUserIdentifier());
     }
 
@@ -83,26 +122,22 @@ class UserProvider implements UserProviderInterface
      */
     private function createOrUpdateApiToken(User $user, string $token): void
     {
-        // Сначала сохраняем пользователя, чтобы получить ID
         if (!$user->getId()) {
             $this->userRepository->save($user, true);
         }
 
-        // Ищем активный токен для пользователя
         $existingToken = $this->userApiTokenRepository->findActiveTokenByUser($user->getId());
-        
+
         if ($existingToken) {
-            // Обновляем существующий токен
             $existingToken->setToken($token);
-            $existingToken->setExpiresAt(new \DateTimeImmutable('+1 hour')); // Токен действует 1 час
+            $existingToken->setExpiresAt(new \DateTimeImmutable('+1 hour'));
             $this->userApiTokenRepository->save($existingToken, true);
         } else {
-            // Создаем новый токен
             $apiToken = new UserApiToken();
             $apiToken->setUser($user);
             $apiToken->setToken($token);
-            $apiToken->setExpiresAt(new \DateTimeImmutable('+1 hour')); // Токен действует 1 час
+            $apiToken->setExpiresAt(new \DateTimeImmutable('+1 hour'));
             $this->userApiTokenRepository->save($apiToken, true);
         }
     }
-} 
+}

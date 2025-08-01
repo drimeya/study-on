@@ -51,9 +51,10 @@ class BillingAuthenticator extends AbstractLoginFormAuthenticator
         try {
             $response = $this->billingClient->auth($email, $password);
         
-            // Сохраняем токен в сессии для использования в UserProvider
+            // Сохраняем токен и refresh_token в сессии для использования в UserProvider
             $request->getSession()->set('billing_token', $response->token);
             $request->getSession()->set('billing_roles', $response->roles);
+            $request->getSession()->set('billing_refresh_token', $response->refreshToken);
             
             // Сбрасываем счетчик попыток при успешном входе
             $this->loginRateLimiter->resetAttempts($email);
