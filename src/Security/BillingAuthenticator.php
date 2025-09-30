@@ -43,30 +43,25 @@ class BillingAuthenticator extends AbstractLoginFormAuthenticator
         
         $request->getSession()->set(SecurityRequestAttributes::LAST_USERNAME, $email);
 
-        // Проверяем rate limiting
         if (!$this->loginRateLimiter->checkLimit($email)) {
             throw new CustomUserMessageAuthenticationException('Слишком много попыток входа. Попробуйте позже.');
         }
 
         try {
             $response = $this->billingClient->auth($email, $password);
-        
-            // Сохраняем токен и refresh_token в сессии для использования в UserProvider
+
             $request->getSession()->set('billing_token', $response->token);
             $request->getSession()->set('billing_roles', $response->roles);
             $request->getSession()->set('billing_refresh_token', $response->refreshToken);
-            
-            // Сбрасываем счетчик попыток при успешном входе
+
             $this->loginRateLimiter->resetAttempts($email);
-        } catch (BillingApiException $e) {
-            // Неверные учетные данные или другая контролируемая ошибка API:
-            // показываем пользователю аккуратное сообщение вместо 500
+        } catch (BillingApiException) {
             throw new CustomUserMessageAuthenticationException('Неверный логин или пароль.');
-        } catch (BillingUnavailableException $e) {
+        } catch (BillingUnavailableException) {
             throw new CustomUserMessageAuthenticationException('Сервис временно недоступен. Попробуйте авторизоваться позднее.');
         }
 
-        $passport = new Passport(
+        return new Passport(
             new UserBadge($email, [$this->userProvider, 'loadUserByIdentifier']),
             new BillingCredentials($email, $password),
             [
@@ -74,8 +69,6 @@ class BillingAuthenticator extends AbstractLoginFormAuthenticator
                 new RememberMeBadge(),
             ]
         );
-        
-        return $passport;
     }
 
     public function onAuthenticationSuccess(Request $request, TokenInterface $token, string $firewallName): ?Response

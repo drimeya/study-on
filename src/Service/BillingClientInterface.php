@@ -34,4 +34,20 @@ interface BillingClientInterface
      * @return BillingTransactionResponse[]
      */
     public function getTransactions(string $token, array $filters = []): array;
+
+    /**
+     * Создать курс в биллинге (только для администратора)
+     *
+     * @throws BillingUnavailableException
+     * @throws \App\Exception\BillingApiException
+     */
+    public function createCourse(string $token, string $code, string $title, string $type, ?float $price = null): void;
+
+    /**
+     * Обновить курс в биллинге (только для администратора)
+     *
+     * @throws BillingUnavailableException
+     * @throws \App\Exception\BillingApiException
+     */
+    public function updateCourse(string $token, string $currentCode, string $newCode, string $title, string $type, ?float $price = null): void;
 }

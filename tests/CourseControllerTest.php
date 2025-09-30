@@ -3,7 +3,7 @@
 namespace App\Tests;
 
 use App\DataFixtures\CourseFixtures;
-use App\DataFixtures\LessionFixtures;
+use App\DataFixtures\LessonFixtures;
 use App\Service\RateLimiter\LoginRateLimiter;
 use App\Tests\Mock\BillingClientMock;
 use Symfony\Component\HttpFoundation\Response;
@@ -16,7 +16,7 @@ class CourseControllerTest extends AbstractTest
     {
         return [
             CourseFixtures::class,
-            LessionFixtures::class,
+            LessonFixtures::class,
         ];
     }
 
@@ -132,6 +132,47 @@ class CourseControllerTest extends AbstractTest
     {
         static::getClient()->request('GET', '/courses/course-0/edit');
         $this->assertResponseRedirects('/login');
+    }
+
+    /**
+     * Обычный пользователь не должен иметь доступа к редактированию курса.
+     */
+    public function testEditCourseWithRegularUserForbidden(): void
+    {
+        $client = static::getClient();
+        $this->loginAsUser();
+
+        $client->request('GET', '/courses/course-0/edit');
+        $this->assertResponseStatusCodeSame(Response::HTTP_FORBIDDEN);
+    }
+
+    /**
+     * Обычный пользователь не должен иметь доступа к созданию курса.
+     */
+    public function testCreateCourseWithRegularUserForbidden(): void
+    {
+        $client = static::getClient();
+        $this->loginAsUser();
+
+        $client->request('GET', '/courses/new');
+        $this->assertResponseStatusCodeSame(Response::HTTP_FORBIDDEN);
+    }
+
+    /**
+     * Обычный пользователь не должен иметь доступа к удалению курса.
+     */
+    public function testDeleteCourseWithRegularUserForbidden(): void
+    {
+        $em     = static::getContainer()->get('doctrine')->getManager();
+        $course = $em->getRepository(\App\Entity\Course::class)->findOneBy(['code' => 'course-0']);
+
+        $client = static::getClient();
+        $this->loginAsUser();
+
+        $client->request('POST', '/courses/' . $course->getId(), [
+            '_token' => 'fake_token',
+        ]);
+        $this->assertResponseStatusCodeSame(Response::HTTP_FORBIDDEN);
     }
 
     public function testEditCourse(): void

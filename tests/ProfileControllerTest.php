@@ -3,7 +3,7 @@
 namespace App\Tests;
 
 use App\DataFixtures\CourseFixtures;
-use App\DataFixtures\LessionFixtures;
+use App\DataFixtures\LessonFixtures;
 use App\Service\RateLimiter\LoginRateLimiter;
 use App\Tests\Mock\BillingClientMock;
 use Symfony\Component\HttpFoundation\Response;
@@ -14,7 +14,7 @@ class ProfileControllerTest extends AbstractTest
     {
         return [
             CourseFixtures::class,
-            LessionFixtures::class,
+            LessonFixtures::class,
         ];
     }
 

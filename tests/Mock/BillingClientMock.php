@@ -54,11 +54,11 @@ class BillingClientMock extends BillingClient
 
         // Курсы соответствуют кодам из CourseFixtures обоих сервисов (course-0..course-4)
         $this->courses = [
-            'course-0' => ['code' => 'course-0', 'type' => 'free'],
-            'course-1' => ['code' => 'course-1', 'type' => 'rent',  'price' => 99.90],
-            'course-2' => ['code' => 'course-2', 'type' => 'buy',   'price' => 159.00],
-            'course-3' => ['code' => 'course-3', 'type' => 'free'],
-            'course-4' => ['code' => 'course-4', 'type' => 'rent',  'price' => 149.90],
+            'course-0' => ['code' => 'course-0', 'title' => 'Изучение Symfony',  'type' => 'free'],
+            'course-1' => ['code' => 'course-1', 'title' => 'Doctrine ORM',       'type' => 'rent', 'price' => 99.90],
+            'course-2' => ['code' => 'course-2', 'title' => 'Модель данных',      'type' => 'buy',  'price' => 159.00],
+            'course-3' => ['code' => 'course-3', 'title' => 'Frontend в Symfony', 'type' => 'free'],
+            'course-4' => ['code' => 'course-4', 'title' => 'Тестирование',       'type' => 'rent', 'price' => 149.90],
         ];
     }
 
@@ -93,7 +93,7 @@ class BillingClientMock extends BillingClient
     public function register(string $email, string $password): BillingAuthResponse
     {
         if (isset($this->users[$email])) {
-            throw new BillingApiException('Unauthorized: User with this email already exists', 401);
+            throw new BillingApiException('Conflict: User with this email already exists', 409);
         }
 
         if (strlen($password) < 6) {
@@ -230,6 +230,55 @@ class BillingClientMock extends BillingClient
         ];
     }
 
+    public function createCourse(string $token, string $code, string $title, string $type, ?float $price = null): void
+    {
+        $this->resolveEmail($token); // проверяем токен
+
+        if (isset($this->courses[$code])) {
+            throw new BillingApiException('Validation error: Курс с таким кодом уже существует', 422);
+        }
+
+        $allowedTypes = ['free', 'rent', 'buy'];
+        if (!in_array($type, $allowedTypes, true)) {
+            throw new BillingApiException('Validation error: Недопустимый тип курса', 422);
+        }
+
+        $this->courses[$code] = array_filter([
+            'code'  => $code,
+            'title' => $title,
+            'type'  => $type,
+            'price' => ($type === 'free') ? null : $price,
+        ], fn ($v) => $v !== null);
+    }
+
+    public function updateCourse(string $token, string $currentCode, string $newCode, string $title, string $type, ?float $price = null): void
+    {
+        $this->resolveEmail($token); // проверяем токен
+
+        if (!isset($this->courses[$currentCode])) {
+            throw new BillingApiException('Not found: Курс не найден', 404);
+        }
+
+        $allowedTypes = ['free', 'rent', 'buy'];
+        if (!in_array($type, $allowedTypes, true)) {
+            throw new BillingApiException('Validation error: Недопустимый тип курса', 422);
+        }
+
+        if ($newCode !== $currentCode && isset($this->courses[$newCode])) {
+            throw new BillingApiException('Validation error: Курс с таким кодом уже существует', 422);
+        }
+
+        $updated = array_filter([
+            'code'  => $newCode,
+            'title' => $title,
+            'type'  => $type,
+            'price' => ($type === 'free') ? null : $price,
+        ], fn ($v) => $v !== null);
+
+        unset($this->courses[$currentCode]);
+        $this->courses[$newCode] = $updated;
+    }
+
     // -------------------------------------------------------------------------
     // Transactions
     // -------------------------------------------------------------------------
@@ -292,11 +341,12 @@ class BillingClientMock extends BillingClient
         ];
     }
 
-    public function addCourse(string $code, string $type, ?float $price = null): void
+    public function addCourse(string $code, string $type, ?float $price = null, ?string $title = null): void
     {
         $this->courses[$code] = array_filter([
-            'code' => $code,
-            'type' => $type,
+            'code'  => $code,
+            'title' => $title ?? $code,
+            'type'  => $type,
             'price' => $price,
         ], fn ($v) => $v !== null);
     }

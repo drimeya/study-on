@@ -14,6 +14,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\Session\SessionInterface;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[Route('/lessons')]
@@ -65,15 +66,8 @@ final class LessonController extends AbstractController
         try {
             $billingCourse = $billingClient->getCourse($course->getCode());
 
-            // Если курс платный — проверяем наличие активной оплаты
-            if ($billingCourse !== null && !$billingCourse->isFree()) {
+            if ($billingCourse !== null && !$billingCourse->isFree() && !$this->isGranted('ROLE_SUPER_ADMIN')) {
                 $token = $session->get('billing_token');
-
-                if (!$token) {
-                    $this->addFlash('error', 'Для просмотра платного курса необходимо войти в систему.');
-                    return $this->redirectToRoute('app_course_show', ['code' => $course->getCode()]);
-                }
-
                 $transactions = $billingClient->getTransactions($token, [
                     'type' => 'payment',
                     'course_code' => $course->getCode(),
@@ -81,8 +75,7 @@ final class LessonController extends AbstractController
                 ]);
 
                 if (empty($transactions)) {
-                    $this->addFlash('error', 'Этот курс необходимо оплатить для просмотра уроков.');
-                    return $this->redirectToRoute('app_course_show', ['code' => $course->getCode()]);
+                    throw new AccessDeniedException('Этот курс необходимо оплатить для просмотра уроков.');
                 }
             }
         } catch (BillingUnavailableException) {

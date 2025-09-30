@@ -95,13 +95,13 @@ class UserProvider implements UserProviderInterface
                     $user->setRefreshToken($authResponse->refreshToken ?? $refreshToken);
                     $this->userRepository->save($user, true);
 
-                    $this->logger->info('JWT token refreshed for user', [
+                    $this->logger->info('JWT-токен обновлён для пользователя', [
                         'email' => $user->getUserIdentifier(),
                     ]);
                 } catch (\Throwable $e) {
                     // Если обновление не удалось — продолжаем с текущим токеном;
                     // пользователь будет разлогинен на следующем запросе к биллингу
-                    $this->logger->warning('Failed to refresh JWT token', [
+                    $this->logger->warning('Не удалось обновить JWT-токен', [
                         'email' => $user->getUserIdentifier(),
                         'error' => $e->getMessage(),
                     ]);

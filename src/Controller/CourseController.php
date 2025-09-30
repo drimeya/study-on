@@ -21,10 +21,6 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[Route('/courses')]
 final class CourseController extends AbstractController
 {
-    // -------------------------------------------------------------------------
-    // Список курсов
-    // -------------------------------------------------------------------------
-
     #[Route(name: 'app_course_index', methods: ['GET'])]
     public function index(CourseRepository $courseRepository, BillingClient $billingClient, SessionInterface $session): Response
     {
@@ -64,19 +60,35 @@ final class CourseController extends AbstractController
         ]);
     }
 
-    // -------------------------------------------------------------------------
-    // Создание курса
-    // -------------------------------------------------------------------------
-
     #[Route('/new', name: 'app_course_new', methods: ['GET', 'POST'])]
     #[IsGranted('ROLE_SUPER_ADMIN')]
-    public function new(Request $request, EntityManagerInterface $entityManager): Response
+    public function new(Request $request, EntityManagerInterface $entityManager, BillingClient $billingClient, SessionInterface $session): Response
     {
         $course = new Course();
         $form = $this->createForm(CourseType::class, $course);
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
+            $token       = $session->get('billing_token');
+            $billingType = $form->get('billingType')->getData() ?? 'free';
+            $billingPrice = $form->get('billingPrice')->getData();
+
+            try {
+                $billingClient->createCourse(
+                    $token,
+                    $course->getCode(),
+                    $course->getName(),
+                    $billingType,
+                    ($billingType !== 'free' && $billingPrice > 0) ? (float) $billingPrice : null
+                );
+            } catch (BillingApiException $e) {
+                $this->addFlash('error', 'Ошибка создания курса в биллинге: ' . $e->getMessage());
+                return $this->render('course/new.html.twig', ['course' => $course, 'form' => $form]);
+            } catch (BillingUnavailableException) {
+                $this->addFlash('error', 'Сервис биллинга временно недоступен. Попробуйте позже.');
+                return $this->render('course/new.html.twig', ['course' => $course, 'form' => $form]);
+            }
+
             $entityManager->persist($course);
             $entityManager->flush();
 
@@ -88,10 +100,6 @@ final class CourseController extends AbstractController
             'form' => $form,
         ]);
     }
-
-    // -------------------------------------------------------------------------
-    // Просмотр курса
-    // -------------------------------------------------------------------------
 
     #[Route('/{code}', name: 'app_course_show', methods: ['GET'])]
     public function show(string $code, CourseRepository $courseRepository, BillingClient $billingClient, SessionInterface $session): Response
@@ -141,10 +149,6 @@ final class CourseController extends AbstractController
         ]);
     }
 
-    // -------------------------------------------------------------------------
-    // Оплата курса
-    // -------------------------------------------------------------------------
-
     #[Route('/{code}/pay', name: 'app_course_pay', methods: ['POST'])]
     #[IsGranted('ROLE_USER')]
     public function pay(string $code, SessionInterface $session, BillingClient $billingClient): Response
@@ -163,13 +167,9 @@ final class CourseController extends AbstractController
         return $this->redirectToRoute('app_course_show', ['code' => $code]);
     }
 
-    // -------------------------------------------------------------------------
-    // Редактирование / удаление
-    // -------------------------------------------------------------------------
-
     #[Route('/{code}/edit', name: 'app_course_edit', methods: ['GET', 'POST'])]
     #[IsGranted('ROLE_SUPER_ADMIN')]
-    public function edit(string $code, Request $request, CourseRepository $courseRepository, EntityManagerInterface $entityManager): Response
+    public function edit(string $code, Request $request, CourseRepository $courseRepository, EntityManagerInterface $entityManager, BillingClient $billingClient, SessionInterface $session): Response
     {
         $course = $courseRepository->findOneBy(['code' => $code]);
 
@@ -177,10 +177,43 @@ final class CourseController extends AbstractController
             throw new NotFoundHttpException('Курс не найден');
         }
 
-        $form = $this->createForm(CourseType::class, $course);
+        // Получаем текущие данные из биллинга для предзаполнения формы
+        $billingCourse = null;
+        try {
+            $billingCourse = $billingClient->getCourse($code);
+        } catch (BillingUnavailableException) {
+            // Форма откроется без предзаполнения billing-полей
+        }
+
+        $form = $this->createForm(CourseType::class, $course, [
+            'billing_type'  => $billingCourse?->type  ?? 'free',
+            'billing_price' => $billingCourse?->price,
+        ]);
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
+            $token        = $session->get('billing_token');
+            $billingType  = $form->get('billingType')->getData()  ?? 'free';
+            $billingPrice = $form->get('billingPrice')->getData();
+
+            try {
+                // Обновляем курс в биллинге (передаём текущий код $code, новый — из entity)
+                $billingClient->updateCourse(
+                    $token,
+                    $code,                    // текущий код (из URL)
+                    $course->getCode(),       // новый код (из формы)
+                    $course->getName(),
+                    $billingType,
+                    ($billingType !== 'free' && $billingPrice > 0) ? (float) $billingPrice : null
+                );
+            } catch (BillingApiException $e) {
+                $this->addFlash('error', 'Ошибка обновления курса в биллинге: ' . $e->getMessage());
+                return $this->render('course/edit.html.twig', ['course' => $course, 'form' => $form]);
+            } catch (BillingUnavailableException) {
+                $this->addFlash('error', 'Сервис биллинга временно недоступен. Попробуйте позже.');
+                return $this->render('course/edit.html.twig', ['course' => $course, 'form' => $form]);
+            }
+
             $entityManager->flush();
 
             return $this->redirectToRoute('app_course_show', ['code' => $course->getCode()], Response::HTTP_SEE_OTHER);

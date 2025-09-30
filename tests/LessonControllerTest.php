@@ -3,7 +3,7 @@
 namespace App\Tests;
 
 use App\DataFixtures\CourseFixtures;
-use App\DataFixtures\LessionFixtures;
+use App\DataFixtures\LessonFixtures;
 use App\Entity\Course;
 use App\Entity\Lesson;
 use App\Service\RateLimiter\LoginRateLimiter;
@@ -16,7 +16,7 @@ class LessonControllerTest extends AbstractTest
     {
         return [
             CourseFixtures::class,
-            LessionFixtures::class,
+            LessonFixtures::class,
         ];
     }
 
@@ -177,23 +177,19 @@ class LessonControllerTest extends AbstractTest
     }
 
     /**
-     * Урок платного курса недоступен без оплаты — редирект на страницу курса с flash-ошибкой.
+     * Урок платного курса недоступен без оплаты — возвращается 403 Forbidden.
      */
-    public function testShowLessonPaidCourseWithoutPaymentRedirects(): void
+    public function testShowLessonPaidCourseWithoutPaymentForbidden(): void
     {
         $client = static::getClient();
         $this->loginAsUser();
 
         $em = static::getContainer()->get('doctrine')->getManager();
-        // course-1 — тип rent в моке, платный
         $course = $em->getRepository(Course::class)->findOneBy(['code' => 'course-1']);
         $lesson = $em->getRepository(Lesson::class)->findOneBy(['course' => $course]);
 
         $client->request('GET', '/lessons/' . $lesson->getId());
-        $this->assertResponseRedirects('/courses/course-1');
-
-        $crawler = $client->followRedirect();
-        $this->assertSelectorTextContains('.alert-danger', 'оплатить');
+        $this->assertResponseStatusCodeSame(Response::HTTP_FORBIDDEN);
     }
 
     /**
@@ -218,23 +214,19 @@ class LessonControllerTest extends AbstractTest
     }
 
     /**
-     * Урок покупаемого курса недоступен без оплаты — редирект с flash.
+     * Урок покупаемого курса недоступен без оплаты — возвращается 403 Forbidden.
      */
-    public function testShowLessonBuyCourseWithoutPaymentRedirects(): void
+    public function testShowLessonBuyCourseWithoutPaymentForbidden(): void
     {
         $client = static::getClient();
         $this->loginAsUser();
 
         $em = static::getContainer()->get('doctrine')->getManager();
-        // course-2 — тип buy в моке
         $course = $em->getRepository(Course::class)->findOneBy(['code' => 'course-2']);
         $lesson = $em->getRepository(Lesson::class)->findOneBy(['course' => $course]);
 
         $client->request('GET', '/lessons/' . $lesson->getId());
-        $this->assertResponseRedirects('/courses/course-2');
-
-        $crawler = $client->followRedirect();
-        $this->assertSelectorTextContains('.alert-danger', 'оплатить');
+        $this->assertResponseStatusCodeSame(Response::HTTP_FORBIDDEN);
     }
 
     /**

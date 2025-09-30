@@ -3,7 +3,7 @@
 namespace App\Tests;
 
 use App\DataFixtures\CourseFixtures;
-use App\DataFixtures\LessionFixtures;
+use App\DataFixtures\LessonFixtures;
 use App\Tests\Mock\BillingClientMock;
 
 class AccessControlTest extends AbstractTest
@@ -12,7 +12,7 @@ class AccessControlTest extends AbstractTest
     {
         return [
             CourseFixtures::class,
-            LessionFixtures::class,
+            LessonFixtures::class,
         ];
     }
 

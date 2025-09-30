@@ -31,11 +31,6 @@ class BillingClient implements BillingClientInterface
      */
     public function request(string $endpoint, array $data = [], string $method = 'GET', ?string $token = null, array $queryParams = []): BillingResponse
     {
-        // Валидация входных параметров
-        $this->validateEndpoint($endpoint);
-        $this->validateMethod($method);
-        $this->validateData($data);
-        
         $url = $this->billingUrl . $endpoint;
         if (!empty($queryParams)) {
             $url .= '?' . http_build_query($queryParams);
@@ -257,52 +252,33 @@ class BillingClient implements BillingClientInterface
     }
 
     /**
-     * Валидирует endpoint
+     * Создать курс в биллинге (только для администратора)
+     *
+     * @throws BillingUnavailableException|BillingApiException
      */
-    private function validateEndpoint(string $endpoint): void
+    public function createCourse(string $token, string $code, string $title, string $type, ?float $price = null): void
     {
-        if (!preg_match('/^\/api\/v1\/[a-zA-Z0-9\/_-]+$/', $endpoint)) {
-            throw new \InvalidArgumentException('Invalid endpoint format: ' . $endpoint);
+        $data = ['code' => $code, 'title' => $title, 'type' => $type];
+        if ($price !== null) {
+            $data['price'] = $price;
         }
+
+        $this->request('/api/v1/courses', $data, 'POST', $token);
     }
 
     /**
-     * Валидирует HTTP метод
+     * Обновить курс в биллинге (только для администратора)
+     *
+     * @throws BillingUnavailableException|BillingApiException
      */
-    private function validateMethod(string $method): void
+    public function updateCourse(string $token, string $currentCode, string $newCode, string $title, string $type, ?float $price = null): void
     {
-        $allowedMethods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
-        if (!in_array(strtoupper($method), $allowedMethods)) {
-            throw new \InvalidArgumentException('Invalid HTTP method: ' . $method);
+        $data = ['code' => $newCode, 'title' => $title, 'type' => $type];
+        if ($price !== null) {
+            $data['price'] = $price;
         }
-    }
 
-    /**
-     * Валидирует данные запроса
-     */
-    private function validateData(array $data): void
-    {
-        // Проверяем глубину массива (не более 3 уровней)
-        if ($this->getArrayDepth($data) > 3) {
-            throw new \InvalidArgumentException('Data array is too deep');
-        }
-    }
-
-    /**
-     * Получает глубину массива
-     */
-    private function getArrayDepth(array $array): int
-    {
-        $maxDepth = 1;
-        foreach ($array as $value) {
-            if (is_array($value)) {
-                $depth = $this->getArrayDepth($value) + 1;
-                if ($depth > $maxDepth) {
-                    $maxDepth = $depth;
-                }
-            }
-        }
-        return $maxDepth;
+        $this->request('/api/v1/courses/' . $currentCode, $data, 'POST', $token);
     }
 
     /**
@@ -323,6 +299,10 @@ class BillingClient implements BillingClientInterface
                     throw new BillingApiException('Forbidden: ' . $message, 403);
                 case 404:
                     throw new BillingApiException('Not found: ' . $message, 404);
+                case 406:
+                    throw new BillingApiException($message, 406);
+                case 409:
+                    throw new BillingApiException('Conflict: ' . $message, 409);
                 case 422:
                     throw new BillingApiException('Validation error: ' . $message, 422);
                 case 429:

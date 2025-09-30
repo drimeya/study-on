@@ -7,6 +7,7 @@ class BillingCourseResponse
     public function __construct(
         public readonly string $code,
         public readonly string $type,
+        public readonly ?string $title = null,
         public readonly ?float $price = null
     ) {
     }
@@ -16,6 +17,7 @@ class BillingCourseResponse
         return new self(
             code: $data['code'] ?? '',
             type: $data['type'] ?? 'free',
+            title: $data['title'] ?? null,
             price: isset($data['price']) ? (float) $data['price'] : null
         );
     }
